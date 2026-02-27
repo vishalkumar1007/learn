@@ -560,7 +560,8 @@ function DiagramViewer({ children, theme }) {
   }, []);
   const onMove = useCallback((e) => {
     if (!startRef.current) return;
-    updatePos(p => ({ ...p, x: e.clientX - startRef.current.x, y: e.clientY - startRef.current.y }));
+    const start = startRef.current;
+    updatePos(p => ({ ...p, x: e.clientX - start.x, y: e.clientY - start.y }));
   }, [updatePos]);
   const onUp = useCallback(() => {
     setDragging(false);

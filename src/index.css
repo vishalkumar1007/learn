@@ -1,0 +1,81 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  
+  --color-bg: #211f1f;
+  --color-surface: #2d2a2a;
+  --color-surface2: #383434;
+  --color-border: #4a4646;
+  --color-text: #e6e1d7;
+  --color-muted: #8c827a;
+  
+  --color-primary: #c8b99a;
+  --color-primary-hover: #b8a98a;
+  --color-primary-muted: #c8b99a33;
+  
+  --color-accent: #c8b99a;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100vh;
+  line-height: 1.6;
+}
+
+.light {
+  --color-bg: #f5f4f2;
+  --color-surface: #ffffff;
+  --color-surface2: #f0eeeb;
+  --color-border: #e5e2de;
+  --color-text: #2d2a2a;
+  --color-muted: #6b6560;
+  --color-primary: #8b7355;
+  --color-primary-hover: #7a6548;
+  --color-primary-muted: #8b735533;
+}
+
+code, pre, .font-mono {
+  font-family: var(--font-mono);
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted);
+}

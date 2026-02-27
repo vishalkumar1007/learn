@@ -2,8 +2,8 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home/Home';
-import Docker from './pages/docker/docker';
-import WSL from './pages/wsl/wsl';
+import Docker from './pages/docker/Docker';
+import WSL from './pages/wsl/WSL';
 
 export const ThemeContext = createContext();
 

@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home/Home';
 import Docker from './pages/docker/docker';
-import WSL from './pages/WSL/WSL';
+import WSL from './pages/wsl/wsl';
 
 export const ThemeContext = createContext();
 

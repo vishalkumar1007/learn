@@ -415,92 +415,85 @@ const D4_Networking = () => (
 
 // ─── Pan / Zoom Viewer ────────────────────────────────────────────────────────
 
+// Add this to your global CSS or index.html <style> tag
+/*
+  html, body {
+    overscroll-behavior: none;
+    -webkit-overflow-scrolling: auto;
+  }
+*/
 
 function DiagramViewer({ children, theme }) {
   const [pos, setPos] = useState({ x: 0, y: 0, scale: 1 });
   const [dragging, setDragging] = useState(false);
-  const startRef = useRef({ x: 0, y: 0 });
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
   const containerRef = useRef();
+
+  useEffect(() => {
+    const checkTouch = () => {
+      setIsTouchDevice(('ontouchstart' in window) || (navigator.maxTouchPoints > 0));
+    };
+    checkTouch();
+  }, []);
+
+  // Use refs for all gesture tracking to avoid stale closures
+  const posRef = useRef({ x: 0, y: 0, scale: 1 });
+  const startRef = useRef(null);
   const ltRef = useRef(null);
   const ldRef = useRef(null);
-  const lMidRef = useRef(null);
 
-  // ── Wheel zoom (desktop) ──────────────────────────────────────────────────
+  // Keep posRef in sync with pos state
+  const updatePos = useCallback((updater) => {
+    setPos(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      posRef.current = next;
+      return next;
+    });
+  }, []);
+
+  // ── Wheel zoom ──────────────────────────────────────────────────────────
   const onWheel = useCallback((e) => {
     e.preventDefault();
     const rect = containerRef.current.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
     const f = e.deltaY > 0 ? 0.9 : 1.1;
-    setPos(p => {
+    updatePos(p => {
       const newScale = Math.min(Math.max(p.scale * f, 0.25), 5);
       const ratio = newScale / p.scale;
-      return {
-        scale: newScale,
-        x: mx - ratio * (mx - p.x),
-        y: my - ratio * (my - p.y),
-      };
+      return { scale: newScale, x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) };
     });
-  }, []);
+  }, [updatePos]);
 
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    el.addEventListener("wheel", onWheel, { passive: false });
-    // Register touch listeners as non-passive so preventDefault works
-    el.addEventListener("touchstart", handleTouchStart, { passive: false });
-    el.addEventListener("touchmove", handleTouchMove, { passive: false });
-    el.addEventListener("touchend", handleTouchEnd);
-    return () => {
-      el.removeEventListener("wheel", onWheel);
-      el.removeEventListener("touchstart", handleTouchStart);
-      el.removeEventListener("touchmove", handleTouchMove);
-      el.removeEventListener("touchend", handleTouchEnd);
-    };
-  }, [onWheel]);
-
-  // ── Mouse drag (desktop) ──────────────────────────────────────────────────
-  const onDown = (e) => {
-    setDragging(true);
-    startRef.current = { x: e.clientX - pos.x, y: e.clientY - pos.y };
-  };
-  const onMove = (e) => {
-    if (!dragging) return;
-    setPos(p => ({ ...p, x: e.clientX - startRef.current.x, y: e.clientY - startRef.current.y }));
-  };
-  const onUp = () => setDragging(false);
-
-  // ── Touch handlers (registered as non-passive via useEffect) ─────────────
+  // ── Touch handlers ──────────────────────────────────────────────────────
   const handleTouchStart = useCallback((e) => {
-    e.preventDefault();
+    e.preventDefault(); // stops scroll, context menu, tap highlight, callout
+    e.stopPropagation();
+
     if (e.touches.length === 1) {
+      const p = posRef.current;
       ltRef.current = {
-        x: e.touches[0].clientX - pos.x,
-        y: e.touches[0].clientY - pos.y,
+        x: e.touches[0].clientX - p.x,
+        y: e.touches[0].clientY - p.y,
       };
       ldRef.current = null;
-      lMidRef.current = null;
     } else if (e.touches.length === 2) {
       ltRef.current = null;
       ldRef.current = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
       );
-      lMidRef.current = {
-        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-        y: (e.touches[0].clientY + e.touches[1].clientY) / 2,
-      };
     }
-  }, [pos]);
+  }, []); // no deps — reads posRef directly, no stale closure
 
   const handleTouchMove = useCallback((e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (e.touches.length === 1 && ltRef.current) {
-      setPos(p => ({
-        ...p,
-        x: e.touches[0].clientX - ltRef.current.x,
-        y: e.touches[0].clientY - ltRef.current.y,
-      }));
+      const x = e.touches[0].clientX - ltRef.current.x;
+      const y = e.touches[0].clientY - ltRef.current.y;
+      updatePos(p => ({ ...p, x, y }));
     } else if (e.touches.length === 2 && ldRef.current !== null) {
       const d = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
@@ -514,39 +507,64 @@ function DiagramViewer({ children, theme }) {
       if (rect) {
         const mx = mid.x - rect.left;
         const my = mid.y - rect.top;
-        setPos(p => {
+        updatePos(p => {
           const f = d / ldRef.current;
           const newScale = Math.min(Math.max(p.scale * f, 0.25), 5);
           const ratio = newScale / p.scale;
-          return {
-            scale: newScale,
-            x: mx - ratio * (mx - p.x),
-            y: my - ratio * (my - p.y),
-          };
+          return { scale: newScale, x: mx - ratio * (mx - p.x), y: my - ratio * (my - p.y) };
         });
       }
       ldRef.current = d;
-      lMidRef.current = mid;
     }
-  }, []);
+  }, [updatePos]);
 
   const handleTouchEnd = useCallback((e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     if (e.touches.length === 0) {
       ltRef.current = null;
       ldRef.current = null;
-      lMidRef.current = null;
     } else if (e.touches.length === 1) {
-      // Finger lifted during pinch → resume as single-finger drag
+      // One finger lifted from a pinch — switch back to drag mode
       ldRef.current = null;
-      lMidRef.current = null;
-      setPos(p => {
-        ltRef.current = {
-          x: e.touches[0].clientX - p.x,
-          y: e.touches[0].clientY - p.y,
-        };
-        return p;
-      });
+      const p = posRef.current;
+      ltRef.current = {
+        x: e.touches[0].clientX - p.x,
+        y: e.touches[0].clientY - p.y,
+      };
     }
+  }, []);
+
+  // ── Register all listeners as non-passive ───────────────────────────────
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const opts = { passive: false };
+    el.addEventListener("wheel", onWheel, opts);
+    el.addEventListener("touchstart", handleTouchStart, opts);
+    el.addEventListener("touchmove", handleTouchMove, opts);
+    el.addEventListener("touchend", handleTouchEnd, opts);
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [onWheel, handleTouchStart, handleTouchMove, handleTouchEnd]);
+
+  // ── Mouse drag ──────────────────────────────────────────────────────────
+  const onDown = useCallback((e) => {
+    setDragging(true);
+    startRef.current = { x: e.clientX - posRef.current.x, y: e.clientY - posRef.current.y };
+  }, []);
+  const onMove = useCallback((e) => {
+    if (!startRef.current) return;
+    updatePos(p => ({ ...p, x: e.clientX - startRef.current.x, y: e.clientY - startRef.current.y }));
+  }, [updatePos]);
+  const onUp = useCallback(() => {
+    setDragging(false);
+    startRef.current = null;
   }, []);
 
   return (
@@ -557,27 +575,36 @@ function DiagramViewer({ children, theme }) {
         onMouseMove={onMove}
         onMouseUp={onUp}
         onMouseLeave={onUp}
+        tabIndex={-1}
         style={{
           width: "100%",
           height: "100%",
           overflow: "hidden",
-          cursor: dragging ? "grabbing" : "grab",
+          cursor: isTouchDevice ? "default" : (dragging ? "grabbing" : "grab"),
           userSelect: "none",
-          touchAction: "none",          // ← critical for mobile
+          touchAction: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          WebkitTapHighlightColor: "transparent",
           background: theme.isDark ? "#171717" : "#171717",
           border: `1px solid ${theme.border}`,
           borderRadius: "12px",
+          outline: "none",
         }}
       >
         <div style={{
           transform: `translate(${pos.x}px, ${pos.y}px) scale(${pos.scale})`,
-          transformOrigin: "0 0",        // ← top-left origin matches x/y math
+          transformOrigin: "0 0",
           transition: dragging ? "none" : "transform 0.05s",
           width: "100%",
           height: "100%",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          // Also block callout/selection on the inner content
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
+          pointerEvents: "none",  // SVG children don't need pointer events for pan/zoom
         }}>
           {children}
         </div>
@@ -585,12 +612,9 @@ function DiagramViewer({ children, theme }) {
 
       <div style={{ position: "absolute", bottom: "12px", right: "12px", display: "flex", gap: "4px", zIndex: 10 }}>
         {[
-          { label: "−", onClick: () => setPos(p => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) })) },
-          {
-            label: `${Math.round(pos.scale * 100)}%`,
-            onClick: () => setPos({ x: 0, y: 0, scale: 1 }),
-          },
-          { label: "+", onClick: () => setPos(p => ({ ...p, scale: Math.min(p.scale * 1.25, 5) })) },
+          { label: "−", onClick: () => updatePos(p => ({ ...p, scale: Math.max(p.scale * 0.8, 0.25) })) },
+          { label: `${Math.round(pos.scale * 100)}%`, onClick: () => updatePos({ x: 0, y: 0, scale: 1 }) },
+          { label: "+", onClick: () => updatePos(p => ({ ...p, scale: Math.min(p.scale * 1.25, 5) })) },
         ].map(b => (
           <button key={b.label} onClick={b.onClick} style={{
             background: theme.isDark ? "#171717" : "#171717",

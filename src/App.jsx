@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home/Home';
 import Docker from './pages/docker/Docker';
@@ -20,7 +20,7 @@ function App() {
 
   return (
     <ThemeContext.Provider value={{ isDark, setIsDark }}>
-      <BrowserRouter>
+      <HashRouter>
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
@@ -28,7 +28,7 @@ function App() {
             <Route path="/wsl" element={<WSL />} />
           </Routes>
         </Layout>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeContext.Provider>
   );
 }
